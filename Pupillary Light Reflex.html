@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pupillary Light Reflex Simulator</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;background:#101b2c;color:#eef4ff;
+  font:16px system-ui,sans-serif;
+}
+main{max-width:1100px;margin:auto;padding:24px}
+h1{font-size:28px;margin:0 0 8px}
+h2{font-size:19px;margin:0 0 12px}
+p{line-height:1.6}
+.panel{
+  background:#192940;border:1px solid #334a65;
+  border-radius:16px;padding:18px;margin:16px 0;
+}
+.muted,.note{color:#b7c7dc}
+.note{font-size:14px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button,select{
+  font:inherit;padding:10px;border-radius:8px;
+  border:1px solid #6681a1;background:#263e5e;
+  color:#eef4ff;cursor:pointer;
+}
+button.active{background:#176c83;border-color:#65dde7}
+button:hover,select:hover{border-color:#65dde7}
+button:focus-visible,select:focus-visible,input:focus-visible{
+  outline:3px solid #ffd47c;outline-offset:3px;
+}
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+fieldset{border:1px solid #526b89;border-radius:12px;padding:15px}
+legend{font-weight:600;padding:0 8px}
+.slider-label{display:block;margin:12px 0 5px;line-height:1.5}
+input[type=range]{width:100%;accent-color:#63d5df}
+output{color:#ffd47c;font-weight:600}
+svg{display:block;width:100%;height:auto}
+#status{color:#ffd47c;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{
+  padding:10px;border-bottom:1px solid #3a506b;
+  text-align:left;vertical-align:top;line-height:1.5;
+}
+a{color:#8ddbe9}
+footer{
+  margin-top:28px;padding-top:16px;
+  border-top:1px solid #334a65;text-align:center;
+}
+@media(max-width:650px){
+  main{padding:14px}
+  h1{font-size:24px}
+  .columns{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+<main>
+<h1>Pupillary Light Reflex</h1>
+<p class="muted">
+  Direct and consensual responses • Afferent and efferent defects •
+  Swinging flashlight test
+</p>
+
+<div class="panel">
+  <div class="controls">
+    <button id="dark" type="button">Light off</button>
+    <button id="right" type="button">Light in RIGHT eye</button>
+    <button id="left" type="button">Light in LEFT eye</button>
+    <button id="swing" type="button">Start swinging test</button>
+    <button id="reset" type="button">Reset to normal</button>
+  </div>
+
+  <p>
+    <label>
+      Time on each eye:
+      <select id="interval">
+        <option value="2">2 seconds</option>
+        <option value="3" selected>3 seconds</option>
+        <option value="4">4 seconds</option>
+      </select>
+    </label>
+  </p>
+
+  <div class="controls">
+    <label for="preset">Example:</label>
+    <select id="preset">
+      <option value="normal">Normal</option>
+      <option value="rightRAPD">Right partial afferent defect</option>
+      <option value="leftRAPD">Left partial afferent defect</option>
+      <option value="rightA">Right complete afferent defect</option>
+      <option value="leftA">Left complete afferent defect</option>
+      <option value="rightE">Right complete efferent defect</option>
+      <option value="leftE">Left complete efferent defect</option>
+      <option value="bilateralA">Equal bilateral afferent reduction</option>
+      <option value="custom">Custom settings</option>
+    </select>
+  </div>
+
+  <div class="columns" style="margin-top:18px">
+    <fieldset>
+      <legend>Patient's RIGHT eye</legend>
+
+      <label class="slider-label" for="RA">
+        Afferent function:
+        <output id="RAvalue">100%</output>
+      </label>
+      <input id="RA" type="range" min="0" max="100" value="100">
+
+      <label class="slider-label" for="RE">
+        Efferent constrictor function:
+        <output id="REvalue">100%</output>
+      </label>
+      <input id="RE" type="range" min="0" max="100" value="100">
+    </fieldset>
+
+    <fieldset>
+      <legend>Patient's LEFT eye</legend>
+
+      <label class="slider-label" for="LA">
+        Afferent function:
+        <output id="LAvalue">100%</output>
+      </label>
+      <input id="LA" type="range" min="0" max="100" value="100">
+
+      <label class="slider-label" for="LE">
+        Efferent constrictor function:
+        <output id="LEvalue">100%</output>
+      </label>
+      <input id="LE" type="range" min="0" max="100" value="100">
+    </fieldset>
+  </div>
+
+  <p class="note">
+    100% = intact modeled function; 0% = complete loss.
+    Intermediate values are illustrative and are not clinical
+    measurements or RAPD grades.
+  </p>
+</div>
+
+<div class="panel">
+  <p id="status"></p>
+
+  <svg viewBox="0 0 1000 360" role="img"
+       aria-labelledby="eye-title eye-desc">
+    <title id="eye-title">Pupillary responses in both eyes</title>
+    <desc id="eye-desc">
+      Anterior view. The patient's right eye is on the viewer's left.
+      A yellow beam identifies the illuminated eye.
+    </desc>
+
+    <defs>
+      <radialGradient id="sclera">
+        <stop offset="0" stop-color="white"/>
+        <stop offset="1" stop-color="#bacbdb"/>
+      </radialGradient>
+      <radialGradient id="iris">
+        <stop offset="0" stop-color="#184355"/>
+        <stop offset=".7" stop-color="#429eb0"/>
+        <stop offset="1" stop-color="#183d50"/>
+      </radialGradient>
+    </defs>
+
+    <text x="280" y="30" text-anchor="middle"
+          fill="#dce6f4" font-size="20">Patient's RIGHT eye</text>
+    <text x="720" y="30" text-anchor="middle"
+          fill="#dce6f4" font-size="20">Patient's LEFT eye</text>
+
+    <polygon id="beamR" points="280,55 205,145 355,145"
+             fill="#ffe078" opacity=".4"/>
+    <polygon id="beamL" points="720,55 645,145 795,145"
+             fill="#ffe078" opacity=".4"/>
+
+    <ellipse cx="280" cy="190" rx="155" ry="95" fill="url(#sclera)"/>
+    <ellipse cx="720" cy="190" rx="155" ry="95" fill="url(#sclera)"/>
+
+    <circle cx="280" cy="190" r="72" fill="url(#iris)"/>
+    <circle cx="720" cy="190" r="72" fill="url(#iris)"/>
+
+    <circle id="pupilR" cx="280" cy="190" r="43" fill="#060c15"/>
+    <circle id="pupilL" cx="720" cy="190" r="43" fill="#060c15"/>
+
+    <circle cx="258" cy="165" r="8" fill="white" opacity=".65"/>
+    <circle cx="698" cy="165" r="8" fill="white" opacity=".65"/>
+
+    <text id="labelR" x="280" y="315" text-anchor="middle"
+          fill="#8ee6dd" font-size="18"></text>
+    <text id="labelL" x="720" y="315" text-anchor="middle"
+          fill="#8ee6dd" font-size="18"></text>
+  </svg>
+
+  <p class="note">
+    Pupil sizes and response timing are schematic.
+    Observe both pupils as the light switches between eyes.
+  </p>
+</div>
+
+<div class="panel">
+  <h2>Reflex pathway</h2>
+  <p class="note">
+    Simplified functional circuit. The bilateral central projections
+    are grouped below; their anatomical crossings are not drawn.
+    Brightness indicates modeled signal strength.
+  </p>
+
+  <svg viewBox="0 0 1000 290" role="img"
+       aria-label="Simplified afferent and bilateral efferent reflex circuit">
+    <g fill="#253d59" stroke="#6582a1" stroke-width="2">
+      <rect x="45" y="25" width="235" height="60" rx="12"/>
+      <rect x="720" y="25" width="235" height="60" rx="12"/>
+      <rect x="330" y="125" width="340" height="60" rx="12"/>
+      <rect x="45" y="220" width="310" height="55" rx="12"/>
+      <rect x="645" y="220" width="310" height="55" rx="12"/>
+    </g>
+
+    <g fill="#e4edf9" font-size="16" text-anchor="middle">
+      <text x="162" y="50">Right retina / CN II</text>
+      <text id="afferentR" x="162" y="73"></text>
+      <text x="838" y="50">Left retina / CN II</text>
+      <text id="afferentL" x="838" y="73"></text>
+      <text x="500" y="150">Pretectal nuclei</text>
+      <text x="500" y="173">Bilateral Edinger–Westphal drive</text>
+      <text x="200" y="243">Right CN III → ciliary ganglion</text>
+      <text x="200" y="265">→ sphincter pupillae</text>
+      <text x="800" y="243">Left CN III → ciliary ganglion</text>
+      <text x="800" y="265">→ sphincter pupillae</text>
+    </g>
+
+    <g fill="none" stroke-width="7">
+      <path id="pathRA" d="M162 85 L390 125" stroke="#ffcf69"/>
+      <path id="pathLA" d="M838 85 L610 125" stroke="#ffcf69"/>
+      <path id="pathRE" d="M420 185 L200 220" stroke="#65e3ca"/>
+      <path id="pathLE" d="M580 185 L800 220" stroke="#65e3ca"/>
+    </g>
+  </svg>
+</div>
+
+<div class="panel">
+  <h2>Expected responses at these settings</h2>
+  <div id="responses"></div>
+
+  <h2 style="margin-top:20px">Interpretation</h2>
+  <div id="interpretation"></div>
+</div>
+
+<div class="panel note">
+  <h2>Teaching points and limitations</h2>
+
+  <p>
+    Light entering either eye supplies afferent input through
+    the retina and optic nerve. Pretectal pathways activate
+    both Edinger–Westphal nuclei. Parasympathetic efferent
+    signals pass through CN III, the ciliary ganglion, and
+    short ciliary nerves to the iris sphincter.
+  </p>
+
+  <p>
+    Direct response means constriction of the illuminated eye.
+    Consensual response means constriction of the opposite eye.
+    A complete afferent defect reduces the response of both
+    pupils when the affected eye is illuminated. A complete
+    unilateral efferent defect prevents that pupil from
+    constricting regardless of which eye is illuminated.
+  </p>
+
+  <p>
+    RAPD is a relative afferent finding. During the swinging
+    flashlight test, moving the light from the stronger
+    afferent eye to the weaker eye produces less bilateral
+    constrictor drive. With intact efferent pathways, both
+    pupils may dilate relative to their preceding constricted
+    state. They are not necessarily larger than in darkness.
+  </p>
+
+  <p>
+    An isolated afferent defect does not itself create resting
+    anisocoria in this model. Efferent loss is illustrated
+    with a larger resting pupil, but actual pupil size depends
+    on the cause and other autonomic influences.
+  </p>
+
+  <p>
+    The model uses equal illumination, a simplified bilateral
+    signal, and illustrative response dynamics. It does not
+    simulate accommodation, light-near dissociation, Horner
+    syndrome, an Adie pupil, pharmacologic effects, or a
+    quantitative clinical RAPD assessment. Efferent settings
+    affect the pupil only, not extraocular movements.
+  </p>
+
+  <p>
+    References:
+    <a href="https://www.ncbi.nlm.nih.gov/books/NBK553169/"
+       target="_blank" rel="noopener noreferrer">
+      Pupillary light reflex pathways
+    </a>
+    ·
+    <a href="https://www.ncbi.nlm.nih.gov/books/NBK381/"
+       target="_blank" rel="noopener noreferrer">
+      Clinical Methods: The Pupils
+    </a>
+  </p>
+</div>
+
+<footer class="note">
+  <p>
+    Developed by <strong>Adisorn Ratanayotha</strong><br>
+    Faculty of Medicine Siriraj Hospital,<br>
+    Mahidol University, Thailand
+  </p>
+</footer>
+</main>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+const sliderIds = ["RA", "RE", "LA", "LE"];
+
+// light: "R", "L", or null.
+let light = null;
+let swinging = false;
+let swingElapsed = 0;
+let lastTimestamp = null;
+
+// Current display radii, in SVG units.
+let radiusR = 43;
+let radiusL = 43;
+
+function settings() {
+  return {
+    RA: Number($("RA").value) / 100,
+    RE: Number($("RE").value) / 100,
+    LA: Number($("LA").value) / 100,
+    LE: Number($("LE").value) / 100
+  };
+}
+
+function setLight(side) {
+  swinging = false;
+  swingElapsed = 0;
+  light = side;
+  updateControls();
+}
+
+function updateControls() {
+  $("dark").classList.toggle("active", light === null);
+  $("right").classList.toggle("active", light === "R");
+  $("left").classList.toggle("active", light === "L");
+  $("swing").classList.toggle("active", swinging);
+
+  $("swing").textContent = swinging
+    ? "Stop swinging test"
+    : "Start swinging test";
+
+  for (const id of ["dark", "right", "left", "swing"]) {
+    $(id).setAttribute(
+      "aria-pressed",
+      String($(id).classList.contains("active"))
+    );
+  }
+
+  const text = light === null
+    ? "Light off"
+    : `Light in the patient's ${light === "R" ? "RIGHT" : "LEFT"} eye`;
+
+  $("status").textContent =
+    (swinging ? "Swinging flashlight test · " : "") + text;
+}
+
+function strengthLabel(value) {
+  if (value === 0) return "Absent";
+  if (value < 0.999) return "Reduced";
+  return "Normal";
+}
+
+function updateEducationalText() {
+  const s = settings();
+
+  for (const id of sliderIds) {
+    $(id + "value").textContent = $(id).value + "%";
+  }
+
+  $("responses").innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Illumination</th>
+          <th>Right pupil</th>
+          <th>Left pupil</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Light in right eye</td>
+          <td>Direct: ${strengthLabel(s.RA * s.RE)}</td>
+          <td>Consensual: ${strengthLabel(s.RA * s.LE)}</td>
+        </tr>
+        <tr>
+          <td>Light in left eye</td>
+          <td>Consensual: ${strengthLabel(s.LA * s.RE)}</td>
+          <td>Direct: ${strengthLabel(s.LA * s.LE)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      “Normal,” “reduced,” and “absent” refer to this model's
+      response amplitude, not clinical diagnostic thresholds.
+    </p>
+  `;
+
+  const messages = [];
+
+  if (s.RA === s.LA) {
+    if (s.RA === 1) {
+      messages.push("Afferent input is normal and equal.");
+    } else if (s.RA === 0) {
+      messages.push(
+        "Both afferent inputs are absent. Neither illuminated " +
+        "eye produces a modeled light response."
+      );
+    } else {
+      messages.push(
+        "Afferent input is equally reduced in both eyes. " +
+        "Responses are reduced, but there is no relative " +
+        "afferent asymmetry in this model."
+      );
+    }
+  } else {
+    const weaker = s.RA < s.LA ? "right" : "left";
+    const stronger = s.RA < s.LA ? "left" : "right";
+
+    messages.push(
+      `The ${weaker} eye has weaker afferent input, producing ` +
+      `a ${weaker} relative afferent pupillary defect.`
+    );
+
+    messages.push(
+      `Switching light from the ${stronger} eye to the ${weaker} ` +
+      "eye reduces bilateral constrictor drive. Observe relative " +
+      "dilation in any pupil with functioning efferent output."
+    );
+  }
+
+  for (const side of ["R", "L"]) {
+    const value = s[side + "E"];
+    const name = side === "R" ? "Right" : "Left";
+
+    if (value === 0) {
+      messages.push(
+        `${name} efferent function is absent: this pupil does ` +
+        "not constrict to illumination of either eye."
+      );
+    } else if (value < 1) {
+      messages.push(
+        `${name} efferent function is reduced: its constriction ` +
+        "is attenuated for illumination of either eye."
+      );
+    }
+  }
+
+  if (s.RE === 0 && s.LE === 0) {
+    messages.push(
+      "Both efferent outputs are absent. Pupillary movement " +
+      "cannot reveal the afferent asymmetry in this simulation."
+    );
+  }
+
+  $("interpretation").innerHTML =
+    messages.map(text => `<p>${text}</p>`).join("");
+}
+
+function applyPreset(name) {
+  const presets = {
+    normal:     [100,100,100,100],
+    rightRAPD:  [35,100,100,100],
+    leftRAPD:   [100,100,35,100],
+    rightA:     [0,100,100,100],
+    leftA:      [100,100,0,100],
+    rightE:     [100,0,100,100],
+    leftE:      [100,100,100,0],
+    bilateralA: [35,100,35,100]
+  };
+
+  if (!presets[name]) return;
+
+  sliderIds.forEach((id, i) => {
+    $(id).value = presets[name][i];
+  });
+
+  updateEducationalText();
+}
+
+$("dark").onclick = () => setLight(null);
+$("right").onclick = () => setLight("R");
+$("left").onclick = () => setLight("L");
+
+$("swing").onclick = () => {
+  swinging = !swinging;
+  swingElapsed = 0;
+
+  if (swinging) {
+    // Start with the right eye, then alternate.
+    light = "R";
+  }
+
+  // Stopping the test leaves the light on the current eye.
+  updateControls();
+};
+
+$("interval").onchange = () => {
+  swingElapsed = 0;
+};
+
+$("preset").onchange = () => {
+  applyPreset($("preset").value);
+};
+
+for (const id of sliderIds) {
+  $(id).oninput = () => {
+    $("preset").value = "custom";
+    updateEducationalText();
+  };
+}
+
+$("reset").onclick = () => {
+  $("preset").value = "normal";
+  applyPreset("normal");
+
+  setLight(null);
+  radiusR = 43;
+  radiusL = 43;
+};
+
+document.addEventListener("visibilitychange", () => {
+  lastTimestamp = null;
+});
+
+function render(delta) {
+  const s = settings();
+
+  const inputR = light === "R" ? s.RA : 0;
+  const inputL = light === "L" ? s.LA : 0;
+  const centralDrive = inputR + inputL;
+
+  /*
+    Illustrative pupil model:
+    intact dark radius = 43;
+    complete efferent loss dark radius = 53;
+    light constriction scales with afferent and efferent function.
+  */
+  const darkR = 43 + 10 * (1 - s.RE);
+  const darkL = 43 + 10 * (1 - s.LE);
+
+  const targetR = darkR - 25 * centralDrive * s.RE;
+  const targetL = darkL - 25 * centralDrive * s.LE;
+
+  // Frame-rate independent easing.
+  const tauR = targetR < radiusR ? 0.22 : 0.40;
+  const tauL = targetL < radiusL ? 0.22 : 0.40;
+
+  radiusR +=
+    (targetR - radiusR) * (1 - Math.exp(-delta / tauR));
+  radiusL +=
+    (targetL - radiusL) * (1 - Math.exp(-delta / tauL));
+
+  $("pupilR").setAttribute("r", radiusR);
+  $("pupilL").setAttribute("r", radiusL);
+
+  $("beamR").style.display = light === "R" ? "" : "none";
+  $("beamL").style.display = light === "L" ? "" : "none";
+
+  $("labelR").textContent = light === null
+    ? "Resting pupil"
+    : light === "R" ? "Direct response" : "Consensual response";
+
+  $("labelL").textContent = light === null
+    ? "Resting pupil"
+    : light === "L" ? "Direct response" : "Consensual response";
+
+  $("afferentR").textContent =
+    `Function: ${Math.round(s.RA * 100)}%`;
+  $("afferentL").textContent =
+    `Function: ${Math.round(s.LA * 100)}%`;
+
+  $("pathRA").style.opacity = 0.12 + 0.88 * inputR;
+  $("pathLA").style.opacity = 0.12 + 0.88 * inputL;
+  $("pathRE").style.opacity =
+    0.12 + 0.88 * centralDrive * s.RE;
+  $("pathLE").style.opacity =
+    0.12 + 0.88 * centralDrive * s.LE;
+}
+
+function frame(timestamp) {
+  const delta = lastTimestamp === null
+    ? 0
+    : Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+
+  lastTimestamp = timestamp;
+
+  if (swinging) {
+    swingElapsed += delta;
+    const interval = Number($("interval").value);
+
+    if (swingElapsed >= interval) {
+      swingElapsed %= interval;
+      light = light === "R" ? "L" : "R";
+      updateControls();
+    }
+  }
+
+  render(delta);
+  requestAnimationFrame(frame);
+}
+
+updateControls();
+updateEducationalText();
+render(0);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
